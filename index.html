@@ -15,12 +15,15 @@
       :root {
         --ios-blue: #007AFF;
         --ios-bg: #F2F2F7;
+        /* Safe area top padding for modern iPhones (Dynamic Island/Notch) */
+        --sat: env(safe-area-inset-top, 44px);
       }
       body {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         background-color: var(--ios-bg);
         -webkit-tap-highlight-color: transparent;
         overflow-x: hidden;
+        margin: 0;
       }
       /* Custom iOS Squircle Corners */
       .ios-card {
@@ -34,6 +37,11 @@
       /* Hide scrollbar but keep functionality */
       ::-webkit-scrollbar {
         display: none;
+      }
+      
+      /* Utilities for safe areas */
+      .pt-safe {
+        padding-top: var(--sat);
       }
     </style>
   <script type="importmap">

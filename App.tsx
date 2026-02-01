@@ -1,6 +1,6 @@
 
-import React, { useState, createContext, useContext } from 'react';
-import { HashRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
+import React, { useState, createContext, useContext, useEffect } from 'react';
+import { HashRouter, Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Users, 
@@ -26,7 +26,20 @@ import InventoryView from './views/Inventory';
 import ComplaintsView from './views/Complaints';
 import ControlView from './views/Control';
 
-// Language Context - Hardcoded to German
+// Auth Context
+interface AuthContextType {
+  isAuthenticated: boolean;
+  login: (user: string, pass: string) => boolean;
+  logout: () => void;
+}
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error("useAuth must be used within AuthProvider");
+  return context;
+};
+
+// Language Context
 interface LanguageContextType {
   lang: 'de';
   t: typeof translations.de;
@@ -58,6 +71,12 @@ export const useAppData = () => {
   const context = useContext(DataContext);
   if (!context) throw new Error("useAppData must be used within DataProvider");
   return context;
+};
+
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated } = useAuth();
+  if (!isAuthenticated) return <Navigate to="/" replace />;
+  return <>{children}</>;
 };
 
 const TabBar = () => {
@@ -93,6 +112,7 @@ const TabBar = () => {
 
 const MoreView = () => {
   const { t } = useTranslation();
+  const { logout } = useAuth();
 
   return (
     <div className="space-y-6 pt-4 animate-in slide-in-from-right-4 duration-300">
@@ -124,7 +144,7 @@ const MoreView = () => {
 
       <div className="px-4 pt-4">
         <button 
-          onClick={() => window.location.href = '#/'}
+          onClick={logout}
           className="w-full bg-white text-red-500 font-bold py-4 rounded-xl shadow-sm border border-slate-200 active:bg-slate-100 transition-colors"
         >
           {t.logout}
@@ -141,20 +161,49 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   if (isLoginPage) return <>{children}</>;
 
   return (
-    <div className="min-h-screen flex flex-col pb-[100px] pt-[safe-area-inset-top]">
-      <header className="sticky top-0 z-40 bg-white/80 ios-blur px-6 h-14 flex items-center justify-between border-b border-slate-100">
-        <span className="text-lg font-bold text-slate-900">norhamtrans <span className="text-[#007AFF]">pro</span></span>
-        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-[#007AFF] font-bold text-xs border border-blue-200">
+    <div className="min-h-screen flex flex-col pb-[100px]">
+      <header className="sticky top-0 z-40 bg-white/90 ios-blur px-6 pt-safe flex items-end justify-between border-b border-slate-100 h-[calc(var(--sat)+56px)] pb-3">
+        <span className="text-lg font-bold text-slate-900 leading-tight tracking-tight lowercase">
+          norhamtrans <span className="text-[#007AFF] uppercase font-black text-xs">pro</span>
+        </span>
+        <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-[#007AFF] font-black text-[10px] border border-blue-200 uppercase">
           nt
         </div>
       </header>
       
-      <main className="flex-1 p-4">
+      <main className="flex-1 p-4 overflow-x-hidden">
         {children}
       </main>
 
       <TabBar />
     </div>
+  );
+};
+
+const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return localStorage.getItem('nt_auth') === 'true';
+  });
+
+  const login = (user: string, pass: string) => {
+    // Requested Credentials (Updated as temporary login)
+    if (user === 'benutzer@norhamtrans.de' && pass === '@dmin_') {
+      setIsAuthenticated(true);
+      localStorage.setItem('nt_auth', 'true');
+      return true;
+    }
+    return false;
+  };
+
+  const logout = () => {
+    setIsAuthenticated(false);
+    localStorage.removeItem('nt_auth');
+  };
+
+  return (
+    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
+      {children}
+    </AuthContext.Provider>
   );
 };
 
@@ -190,26 +239,28 @@ const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
 const App: React.FC = () => {
   return (
-    <LanguageProvider>
-      <DataProvider>
-        <HashRouter>
-          <Layout>
-            <Routes>
-              <Route path="/" element={<Login />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/drivers" element={<DriverManager />} />
-              <Route path="/tours" element={<TourManager />} />
-              <Route path="/stops" element={<StopPlanView />} />
-              <Route path="/inventory" element={<InventoryView />} />
-              <Route path="/complaints" element={<ComplaintsView />} />
-              <Route path="/control" element={<ControlView />} />
-              <Route path="/more" element={<MoreView />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Layout>
-        </HashRouter>
-      </DataProvider>
-    </LanguageProvider>
+    <AuthProvider>
+      <LanguageProvider>
+        <DataProvider>
+          <HashRouter>
+            <Layout>
+              <Routes>
+                <Route path="/" element={<Login />} />
+                <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                <Route path="/drivers" element={<ProtectedRoute><DriverManager /></ProtectedRoute>} />
+                <Route path="/tours" element={<ProtectedRoute><TourManager /></ProtectedRoute>} />
+                <Route path="/stops" element={<ProtectedRoute><StopPlanView /></ProtectedRoute>} />
+                <Route path="/inventory" element={<ProtectedRoute><InventoryView /></ProtectedRoute>} />
+                <Route path="/complaints" element={<ProtectedRoute><ComplaintsView /></ProtectedRoute>} />
+                <Route path="/control" element={<ProtectedRoute><ControlView /></ProtectedRoute>} />
+                <Route path="/more" element={<ProtectedRoute><MoreView /></ProtectedRoute>} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Layout>
+          </HashRouter>
+        </DataProvider>
+      </LanguageProvider>
+    </AuthProvider>
   );
 };
 
