@@ -25,16 +25,16 @@ const Login: React.FC = () => {
     setLoading(true);
     setError(null);
 
-    // Simulate network delay
+    // Simulate network delay to feel like a real auth process
     setTimeout(() => {
       const success = login(email, password);
       if (success) {
         navigate('/dashboard');
       } else {
-        setError('Ungültige Anmeldedaten. Bitte prüfen Sie E-Mail und Passwort.');
+        setError('Login fehlgeschlagen. Bitte überprüfen Sie E-Mail und Passwort.');
         setLoading(false);
       }
-    }, 1000);
+    }, 800);
   };
 
   return (
@@ -48,11 +48,14 @@ const Login: React.FC = () => {
           <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em] opacity-60">Logistik & Personal</p>
         </div>
 
-        <form onSubmit={handleLogin} className="bg-white rounded-3xl p-8 shadow-2xl space-y-6">
+        <form 
+          onSubmit={handleLogin} 
+          className={`bg-white rounded-3xl p-8 shadow-2xl space-y-6 transition-all ${error ? 'border-2 border-red-500/20 ring-4 ring-red-500/5' : ''}`}
+        >
           {error && (
-            <div className="bg-red-50 border border-red-100 p-4 rounded-2xl flex items-start space-x-3 animate-in slide-in-from-top-2 duration-300">
-              <AlertCircle className="text-red-500 shrink-0" size={18} />
-              <p className="text-xs font-bold text-red-600 leading-tight">{error}</p>
+            <div className="bg-red-50 border border-red-100 p-4 rounded-2xl flex items-center space-x-3 animate-bounce-short">
+              <AlertCircle className="text-red-500 shrink-0" size={20} />
+              <p className="text-xs font-black text-red-600 leading-tight uppercase tracking-tight">{error}</p>
             </div>
           )}
 
@@ -63,8 +66,9 @@ const Login: React.FC = () => {
               <input 
                 type="email" 
                 required
+                autoComplete="email"
                 className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-bold text-sm"
-                placeholder="benutzer@norhamtrans.de"
+                placeholder="t.turcan@anviktrans.de"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -78,6 +82,7 @@ const Login: React.FC = () => {
               <input 
                 type="password" 
                 required
+                autoComplete="current-password"
                 className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-bold text-sm"
                 placeholder="••••••••"
                 value={password}
@@ -99,14 +104,24 @@ const Login: React.FC = () => {
           </button>
 
           <div className="pt-2 text-center">
-            <a href="#" className="text-[11px] font-black text-blue-600 uppercase tracking-widest hover:text-blue-700">{t.forgotPass}</a>
+            <a href="#" className="text-[11px] font-black text-blue-600 uppercase tracking-widest hover:text-blue-700 opacity-60">Passwort vergessen?</a>
           </div>
         </form>
 
-        <p className="text-center mt-12 text-slate-500/50 text-[10px] font-black uppercase tracking-[0.3em]">
-          &copy; {new Date().getFullYear()} {t.brand} systems
+        <p className="text-center mt-12 text-slate-500/30 text-[9px] font-black uppercase tracking-[0.4em]">
+          &copy; {new Date().getFullYear()} {t.brand} logistics suite
         </p>
       </div>
+      
+      <style>{`
+        @keyframes bounce-short {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
+        }
+        .animate-bounce-short {
+          animation: bounce-short 0.4s ease-in-out 1;
+        }
+      `}</style>
     </div>
   );
 };

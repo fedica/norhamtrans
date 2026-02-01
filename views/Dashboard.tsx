@@ -14,13 +14,14 @@ import {
   Clock,
   LayoutGrid
 } from 'lucide-react';
-import { useTranslation, useAppData } from '../App';
+import { useTranslation, useAppData, useAuth } from '../App';
 import { VehicleStatus } from '../types';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { drivers, complaints, tours, inventory } = useAppData();
+  const { user } = useAuth();
 
   // Practical metrics calculations
   const todayStr = new Date().toISOString().split('T')[0];
@@ -30,10 +31,10 @@ const Dashboard: React.FC = () => {
   const vehiclesInService = inventory.filter(i => i.vehicleStatus === VehicleStatus.SERVICE).length;
 
   const quickStats = [
-    { label: 'Touren', value: toursToday, icon: MapIcon, color: 'text-blue-600', bg: 'bg-blue-50' },
-    { label: 'Fahrer', value: activeDrivers, icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-    { label: 'Offen', value: pendingComplaints, icon: AlertCircle, color: 'text-amber-600', bg: 'bg-amber-50' },
-    { label: 'Service', value: vehiclesInService, icon: Wrench, color: 'text-red-600', bg: 'bg-red-50' },
+    { label: 'Touren', value: toursToday, icon: MapIcon, color: 'text-blue-600', bg: 'bg-blue-50', path: '/tours' },
+    { label: 'Fahrer', value: activeDrivers, icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-50', path: '/drivers' },
+    { label: t.complaints, value: pendingComplaints, icon: AlertCircle, color: 'text-amber-600', bg: 'bg-amber-50', path: '/complaints' },
+    { label: 'Service', value: vehiclesInService, icon: Wrench, color: 'text-red-600', bg: 'bg-red-50', path: '/vehicles' },
   ];
 
   const primaryActions = [
@@ -64,7 +65,7 @@ const Dashboard: React.FC = () => {
     { 
       id: 'inventory', 
       name: t.inventory, 
-      desc: 'Flotte & Lager', 
+      desc: 'Lager', 
       icon: Package, 
       path: '/inventory', 
       color: 'bg-emerald-500' 
@@ -77,7 +78,7 @@ const Dashboard: React.FC = () => {
       <div className="flex items-center justify-between px-1 pt-2">
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-none">
-            {t.welcome.split(' ')[0]} <span className="text-blue-600">Admin</span>
+            Willkommen <span className="text-blue-600">{user?.name || 'Admin'}</span>
           </h1>
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
             norhamtrans control center
@@ -94,13 +95,17 @@ const Dashboard: React.FC = () => {
       {/* Highlights / Quick Metrics */}
       <div className="grid grid-cols-4 gap-2 px-1">
         {quickStats.map((stat, i) => (
-          <div key={i} className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center text-center">
+          <button 
+            key={i} 
+            onClick={() => navigate(stat.path)}
+            className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center text-center active:scale-95 transition-all"
+          >
             <div className={`p-2 ${stat.bg} ${stat.color} rounded-xl mb-1`}>
               <stat.icon size={16} strokeWidth={2.5} />
             </div>
             <p className="text-sm font-black text-slate-900 leading-none">{stat.value}</p>
             <p className="text-[8px] font-black text-slate-400 uppercase tracking-tighter mt-1">{stat.label}</p>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -172,7 +177,7 @@ const Dashboard: React.FC = () => {
             onClick={() => navigate('/complaints')}
             className="w-full mt-6 py-3.5 bg-white text-slate-900 rounded-2xl font-black text-xs active:scale-[0.98] transition-transform shadow-lg flex items-center justify-center"
           >
-            Aktuelle Protokolle prüfen <ChevronRight size={14} className="ml-1" />
+            Aktuelle Reklamationen prüfen <ChevronRight size={14} className="ml-1" />
           </button>
         </div>
       </div>

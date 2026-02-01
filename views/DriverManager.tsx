@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Plus, Search, X, ChevronRight, Tag, User, Edit3, UserPlus, UserCheck, Shirt, RefreshCw, Package, Truck, Calendar } from 'lucide-react';
+import { Plus, Search, X, ChevronRight, Tag, User, Edit3, UserPlus, UserCheck, Shirt, RefreshCw, Package, Truck, Calendar, Trash2 } from 'lucide-react';
 import { Driver, InventoryType, VehicleStatus, InventoryAssignment } from '../types';
 import SignaturePad from '../components/SignaturePad';
 import { useTranslation, useAppData } from '../App';
@@ -14,6 +14,7 @@ const DriverManager: React.FC = () => {
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
   const [viewingDetailsId, setViewingDetailsId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<string | null>(null);
   
   const [isAssigningItem, setIsAssigningItem] = useState(false);
   const [itemTypeFilter, setItemTypeFilter] = useState<InventoryType | null>(null);
@@ -74,6 +75,22 @@ const DriverManager: React.FC = () => {
     setIsModalOpen(false);
   };
 
+  const handleDeleteDriver = () => {
+    if (!isDeleteModalOpen) return;
+    const driverId = isDeleteModalOpen;
+
+    // Unassign vehicles and items before deleting
+    setInventory(inventory.map(item => {
+      if (item.assignedTo === driverId) {
+        return { ...item, assignedTo: undefined, signature: undefined, assignmentDate: undefined, vehicleStatus: VehicleStatus.ACTIVE };
+      }
+      return item;
+    }));
+
+    setDrivers(drivers.filter(d => d.id !== driverId));
+    setIsDeleteModalOpen(null);
+  };
+
   const handleReturnItem = (itemId: string, recordId: string) => {
     const item = inventory.find(i => i.id === itemId);
     if (!item) return;
@@ -113,6 +130,9 @@ const DriverManager: React.FC = () => {
     const assignedItem = inventory.find(i => i.id === assignmentData.itemId);
     if (!assignedItem) return;
 
+    const currentDriver = drivers.find(d => d.id === viewingDetailsId);
+    const plateSnapshot = currentDriver?.plate || '---';
+
     if (assignedItem.type === InventoryType.VEHICLE) {
       let updatedInventory = inventory.map(item => 
         (item.type === InventoryType.VEHICLE && item.assignedTo === viewingDetailsId)
@@ -143,7 +163,8 @@ const DriverManager: React.FC = () => {
         itemId: assignedItem.id,
         quantity: assignmentData.quantity,
         date: new Date().toISOString(),
-        signature: assignmentData.signature
+        signature: assignmentData.signature,
+        driverPlateAtTime: plateSnapshot
       };
 
       setInventory(inventory.map(it => it.id === assignedItem.id ? {
@@ -198,7 +219,7 @@ const DriverManager: React.FC = () => {
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mx-2">
         {filteredDrivers.map((driver, index) => (
-          <div key={driver.id} onClick={() => setViewingDetailsId(driver.id)} className={`flex items-center p-4 active:bg-slate-50 transition-colors cursor-pointer ${index !== filteredDrivers.length - 1 ? 'border-b border-slate-100' : ''}`}>
+          <div key={driver.id} onClick={() => setViewingDetailsId(driver.id)} className={`flex items-center p-4 active:bg-slate-50 transition-colors cursor-pointer group ${index !== filteredDrivers.length - 1 ? 'border-b border-slate-100' : ''}`}>
             <div className={`w-12 h-12 rounded-full flex items-center justify-center font-black text-lg mr-4 border border-slate-200 shadow-inner ${driver.isBeginner ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-[#007AFF]'}`}>{driver.firstName[0]}{driver.lastName[0]}</div>
             <div className="flex-1 overflow-hidden">
               <div className="flex items-center">
@@ -208,14 +229,38 @@ const DriverManager: React.FC = () => {
               <p className="text-[11px] text-slate-500 font-bold uppercase tracking-tighter mt-0.5">{driver.glsNumber} <span className="mx-1 text-slate-300">•</span> {driver.plate || 'Kein Fahrzeug'}</p>
             </div>
             <div className="flex items-center space-x-2">
+              <button 
+                onClick={(e) => { e.stopPropagation(); setIsDeleteModalOpen(driver.id); }}
+                className="p-2 text-slate-200 hover:text-red-500 transition-colors"
+              >
+                <Trash2 size={18} />
+              </button>
               <button onClick={(e) => handleOpenEquip(e, driver.id)} className="bg-blue-50 text-[#007AFF] p-2 rounded-xl active:scale-90 transition-transform flex flex-col items-center justify-center">
-                <Shirt size={18} /><span className="text-[8px] font-black uppercase mt-0.5">Einkleidung</span>
+                <Shirt size={18} /><span className="text-[8px] font-black uppercase mt-0.5">{t.equipping}</span>
               </button>
               <ChevronRight className="text-slate-300" size={20} />
             </div>
           </div>
         ))}
       </div>
+
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-[150] bg-black/60 ios-blur flex items-center justify-center p-6 animate-in fade-in duration-200">
+           <div className="bg-white w-full max-w-sm rounded-[32px] p-8 shadow-2xl text-center space-y-6">
+              <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                 <Trash2 size={32} />
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-slate-900">{t.fired}?</h2>
+                <p className="text-sm text-slate-500 mt-2 font-medium">Soll der Fahrer wirklich aus dem System entfernt werden? Alle Fahrzeugzuweisungen werden aufgehoben.</p>
+              </div>
+              <div className="flex space-x-3">
+                <button onClick={() => setIsDeleteModalOpen(null)} className="flex-1 py-4 font-bold text-slate-500 bg-slate-100 rounded-2xl active:bg-slate-200 transition-all">{t.cancel}</button>
+                <button onClick={handleDeleteDriver} className="flex-1 py-4 font-black text-white bg-red-600 rounded-2xl shadow-lg shadow-red-500/20 active:scale-95 transition-all">{t.delete}</button>
+              </div>
+           </div>
+        </div>
+      )}
 
       {viewingDetailsId && selectedDriver && (
         <div className="fixed inset-0 z-[100] bg-black/40 ios-blur flex items-end animate-in fade-in duration-200">
@@ -241,8 +286,8 @@ const DriverManager: React.FC = () => {
                 <div className="flex items-center justify-between px-2">
                   <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Ausrüstung & Bestand</h4>
                   <div className="flex space-x-2">
-                    <button onClick={() => { setItemTypeFilter(InventoryType.CLOTHING); setIsAssigningItem(true); }} className="text-[#007AFF] text-[10px] font-black flex items-center bg-blue-50 px-3 py-1.5 rounded-lg uppercase"><Shirt size={14} className="mr-1.5" /> Einkleidung</button>
-                    <button onClick={() => { setItemTypeFilter(null); setIsAssigningItem(true); }} className="text-slate-600 text-[10px] font-black flex items-center bg-slate-100 px-3 py-1.5 rounded-lg uppercase"><Plus size={14} className="mr-1.5" /> Ausrüstung</button>
+                    <button onClick={() => { setItemTypeFilter(InventoryType.CLOTHING); setIsAssigningItem(true); }} className="text-[#007AFF] text-[10px] font-black flex items-center bg-blue-50 px-3 py-1.5 rounded-lg uppercase"><Shirt size={14} className="mr-1.5" /> {t.equipping}</button>
+                    <button onClick={() => { setItemTypeFilter(null); setIsAssigningItem(true); }} className="text-slate-600 text-[10px] font-black flex items-center bg-slate-100 px-3 py-1.5 rounded-lg uppercase"><Plus size={14} className="mr-1.5" /> {t.assign}</button>
                   </div>
                 </div>
                 <div className="space-y-3">
@@ -256,7 +301,17 @@ const DriverManager: React.FC = () => {
                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">{item.typeLabel} {item.size ? `• Gr: ${item.size}` : (item.plate ? `• Kz: ${item.plate}` : `• Menge: ${item.quantityAssigned || 1}`)}</p>
                           </div>
                         </div>
-                        {item.type === InventoryType.VEHICLE ? <button onClick={() => handleUnassignVehicle(item.id)} className="p-2 text-slate-300 hover:text-red-500"><RefreshCw size={16} /></button> : !item.isConsumable ? <button onClick={() => handleReturnItem(item.id, item.recordId)} className="text-[10px] font-black bg-emerald-50 text-emerald-600 px-2 py-1 rounded-md uppercase tracking-tighter flex items-center"><RefreshCw size={10} className="mr-1" /> Rückgabe</button> : <span className="text-[10px] font-black text-blue-400 bg-blue-50 px-2 py-1 rounded uppercase tracking-tighter">Verbrauchsgut</span>}
+                        {item.type === InventoryType.VEHICLE ? (
+                           <button onClick={() => handleUnassignVehicle(item.id)} className="p-2 text-slate-300 hover:text-red-500"><RefreshCw size={16} /></button> 
+                        ) : (
+                          (!item.isConsumable && item.type !== InventoryType.OTHER) ? (
+                            <button onClick={() => handleReturnItem(item.id, item.recordId)} className="text-[10px] font-black bg-emerald-50 text-emerald-600 px-2 py-1 rounded-md uppercase tracking-tighter flex items-center"><RefreshCw size={10} className="mr-1" /> {t.returnItem}</button>
+                          ) : (
+                            <span className={`text-[10px] font-black px-2 py-1 rounded uppercase tracking-tighter ${item.isConsumable ? 'text-blue-400 bg-blue-50' : 'text-purple-400 bg-purple-50'}`}>
+                              {item.isConsumable ? t.resolved : t.assigned}
+                            </span>
+                          )
+                        )}
                       </div>
                       <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-50">
                         <div className="flex flex-col"><p className="text-[9px] font-black text-slate-400 uppercase mb-1">Empfangsdatum</p><p className="text-xs font-bold text-slate-700">{item.assignmentDate || item.dateAssigned ? format(new Date(item.assignmentDate || item.dateAssigned), 'dd.MM.yyyy') : '---'}</p></div>
@@ -274,7 +329,7 @@ const DriverManager: React.FC = () => {
       {isAssigningItem && (
         <div className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between"><h3 className="text-lg font-black">{itemTypeFilter === InventoryType.CLOTHING ? 'Einkleidung / Ausgabe' : 'Zuweisung'}</h3><button onClick={() => { setIsAssigningItem(false); setItemTypeFilter(null); }} className="text-slate-400"><X size={20} /></button></div>
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between"><h3 className="text-lg font-black">{itemTypeFilter === InventoryType.CLOTHING ? t.equipping : t.assign}</h3><button onClick={() => { setIsAssigningItem(false); setItemTypeFilter(null); }} className="text-slate-400"><X size={20} /></button></div>
             <form onSubmit={handleAssignItem} className="p-6 space-y-6 overflow-y-auto">
               <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Objekt wählen</label><select required className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-sm" value={assignmentData.itemId} onChange={e => setAssignmentData({...assignmentData, itemId: e.target.value})}><option value="">Wählen...</option>{availableItems.map(item => (<option key={item.id} value={item.id}>[{item.type}] {item.name} {item.size ? `[Gr: ${item.size}]` : ''} {item.plate ? `(${item.plate})` : `[Lager: ${item.quantity}]`}</option>))}</select></div>
               {assignmentData.itemId && inventory.find(i => i.id === assignmentData.itemId)?.type !== InventoryType.VEHICLE && (<div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Menge</label><input type="number" min="1" max={inventory.find(i => i.id === assignmentData.itemId)?.quantity} required className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-sm" value={assignmentData.quantity} onChange={e => setAssignmentData({...assignmentData, quantity: parseInt(e.target.value) || 1})} /></div>)}

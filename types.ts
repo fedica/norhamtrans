@@ -31,6 +31,7 @@ export interface InventoryAssignment {
   date: string;
   signature: string;
   returnedAt?: string;
+  driverPlateAtTime?: string; // Static snapshot of the plate during assignment
 }
 
 export interface Driver {
@@ -57,7 +58,7 @@ export interface InventoryItem {
   signature?: string;
   assignmentDate?: string;
   vehicleStatus?: VehicleStatus;
-  serviceLocation?: string; // New field for service location
+  serviceLocation?: string;
   huExpiration?: string;
   history?: InventoryAssignment[];
 }
@@ -79,7 +80,7 @@ export interface Tour {
   vehiclePlate: string;
   date: string;
   status: TourStatus;
-  tourType: TourType; // New field
+  tourType: TourType;
   progress: number;
   totalPackages: number;
   totalStops: number;

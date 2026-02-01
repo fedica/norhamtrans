@@ -8,7 +8,7 @@ export const translations = {
     driverManager: "Fahrerverwaltung",
     tourManager: "Tourenplan",
     stopPlan: "Tagesprotokoll",
-    inventory: "Inventar",
+    inventory: "Lager & Bestand",
     complaints: "Reklamationen",
     control: "Abfahrtskontrolle",
     logout: "Abmelden",
@@ -61,7 +61,7 @@ export const translations = {
     selectVehicle: "Fahrzeug auswählen",
     clothing: "Arbeitskleidung",
     vehicles: "Fahrzeugflotte",
-    other: "Ausrüstung",
+    other: "Lager",
     sendToService: "Werkstatt",
     reallocate: "Neu zuweisen",
     returnFromService: "Einsatzbereit",
@@ -74,6 +74,8 @@ export const translations = {
     plateLetters: "ID",
     plateNumbers: "Nummer",
     equipping: "Einkleidung",
+    assign: "Zuordnen",
+    history: "Historie",
     consumable: "Verbrauchsmaterial",
     asset: "Inventar / Mehrweg",
     returnItem: "Rückgabe",
@@ -89,6 +91,8 @@ export const translations = {
     serviceOrhan: "Team Orhan",
     serviceOhm: "Service Ohm",
     available: "Verfügbar",
-    inService: "Im Service"
+    inService: "Im Service",
+    delete: "Löschen",
+    fired: "Gekündigt"
   }
 };
