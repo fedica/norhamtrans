@@ -74,7 +74,7 @@ const ControlView: React.FC = () => {
         <div className="fixed inset-0 z-[110] bg-black/40 ios-blur flex items-end animate-in fade-in duration-200">
           <div className="bg-white w-full rounded-t-[30px] flex flex-col max-h-[92vh] animate-in slide-in-from-bottom-20 duration-300">
             <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto my-3"></div>
-            <div className="px-6 pb-4 border-b border-slate-100 flex items-center justify-between"><h2 className="text-xl font-black">{t.newInspection}</h2><button onClick={() => setIsModalOpen(false)} className="text-[#007AFF] font-bold">Abbrechen</button></div>
+            <div className="px-6 pb-4 border-b border-slate-100 flex items-center justify-between"><h2 className="text-xl font-black">{t.newInspection}</h2><button onClick={() => setIsModalOpen(false)} className="text-red-500 font-bold">{t.cancel}</button></div>
             <form onSubmit={handleSave} className="p-6 space-y-6 overflow-y-auto">
               <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Fahrer wählen</label><select required className="w-full p-4 bg-slate-100 rounded-xl outline-none font-bold text-sm" value={formData.driverId} onChange={e => setFormData({...formData, driverId: e.target.value})}><option value="">Suche Fahrer...</option>{drivers.map(d => <option key={d.id} value={d.id}>{d.firstName} {d.lastName}</option>)}</select></div>
               <div className="space-y-3">

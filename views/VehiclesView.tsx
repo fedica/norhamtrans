@@ -1,10 +1,10 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Truck, Plus, Search, X, Wrench, RefreshCw, AlertCircle, User } from 'lucide-react';
-import { format, isPast } from 'date-fns';
-import { InventoryItem, InventoryType, VehicleStatus } from '../types';
-import SignaturePad from '../components/SignaturePad';
-import { useTranslation, useAppData } from '../App';
+import { Truck, Plus, Search, X, Wrench, RefreshCw, AlertCircle, User, AlertTriangle } from 'lucide-react';
+import { format, isPast, differenceInDays, parseISO } from 'date-fns';
+import { InventoryItem, InventoryType, VehicleStatus } from '../types.ts';
+import SignaturePad from '../components/SignaturePad.tsx';
+import { useTranslation, useAppData } from '../App.tsx';
 
 const VehiclesView: React.FC = () => {
   const { t } = useTranslation();
@@ -18,6 +18,8 @@ const VehiclesView: React.FC = () => {
   const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [plateParts, setPlateParts] = useState({ city: '', letters: '', numbers: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const [newItemData, setNewItemData] = useState({
     type: InventoryType.VEHICLE,
     name: '',
@@ -74,67 +76,56 @@ const VehiclesView: React.FC = () => {
     setNewItemData(prev => ({ ...prev, plate: combined.trim() }));
   }, [plateParts]);
 
-  const handleStatusChange = (itemId: string, newStatus: VehicleStatus, location?: string) => {
-    setInventory(inventory.map(item => {
-      if (item.id === itemId) {
-        return { 
-          ...item, 
-          vehicleStatus: newStatus,
-          serviceLocation: location,
-          assignedTo: undefined,
-          signature: undefined,
-          assignmentDate: undefined
-        };
-      }
-      return item;
-    }));
-
+  const handleStatusChange = async (itemId: string, newStatus: VehicleStatus, location?: string) => {
     const item = inventory.find(i => i.id === itemId);
+    
+    setInventory(prev => prev.map(i => i.id === itemId ? {
+      ...i,
+      vehicleStatus: newStatus,
+      serviceLocation: location || undefined,
+      assignedTo: undefined,
+      signature: undefined,
+      assignmentDate: undefined
+    } : i));
+
     if (item?.plate) {
-      setDrivers(drivers.map(d => d.plate === item.plate ? { ...d, plate: '' } : d));
+      setDrivers(prev => prev.map(d => d.plate === item.plate ? { ...d, plate: '' } : d));
     }
     setIsServiceMenuOpen(null);
   };
 
   const handleUnassignVehicle = (e: React.MouseEvent, itemId: string) => {
     e.stopPropagation();
-    setInventory(inventory.map(item => 
-      item.id === itemId 
-        ? { 
-            ...item, 
-            assignedTo: undefined, 
-            signature: undefined, 
-            assignmentDate: undefined, 
-            vehicleStatus: VehicleStatus.ACTIVE 
-          } 
-        : item
-    ));
-
     const item = inventory.find(i => i.id === itemId);
+    
+    setInventory(prev => prev.map(i => i.id === itemId ? {
+      ...i,
+      assignedTo: undefined,
+      signature: undefined,
+      assignmentDate: undefined,
+      vehicleStatus: VehicleStatus.ACTIVE
+    } : i));
+
     if (item?.plate) {
-      setDrivers(drivers.map(d => d.plate === item.plate ? { ...d, plate: '' } : d));
+      setDrivers(prev => prev.map(d => d.plate === item.plate ? { ...d, plate: '' } : d));
     }
   };
 
   const handleSaveItem = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!plateParts.city || !plateParts.letters || !plateParts.numbers) {
-      alert("Vollständiges Kennzeichen erforderlich");
-      return;
-    }
+    if (!plateParts.city || !plateParts.letters || !plateParts.numbers) return;
 
+    const itemToSave: InventoryItem = {
+      id: editingItemId || 'i-' + Math.random().toString(36).substr(2, 9),
+      ...newItemData,
+      quantity: 1,
+      history: editingItemId ? inventory.find(i => i.id === editingItemId)?.history || [] : []
+    };
+    
     if (editingItemId) {
-      setInventory(inventory.map(item => 
-        item.id === editingItemId ? { ...item, ...newItemData } : item
-      ));
+      setInventory(prev => prev.map(i => i.id === editingItemId ? itemToSave : i));
     } else {
-      const newItem: InventoryItem = {
-        id: 'i-' + Math.random().toString(36).substr(2, 9),
-        ...newItemData,
-        quantity: 1,
-        history: []
-      };
-      setInventory([newItem, ...inventory]);
+      setInventory(prev => [itemToSave, ...prev]);
     }
     setIsAddItemModalOpen(false);
   };
@@ -143,16 +134,30 @@ const VehiclesView: React.FC = () => {
     e.preventDefault();
     if (!selectedItem || !assignmentData.driverId) return;
 
-    setInventory(inventory.map(it => it.id === selectedItem.id ? {
-      ...it,
+    const targetDriver = drivers.find(d => d.id === assignmentData.driverId);
+    
+    // Clear old vehicle if driver had one
+    if (targetDriver?.plate) {
+      setInventory(prev => prev.map(v => v.plate === targetDriver.plate ? {
+        ...v,
+        assignedTo: undefined,
+        signature: undefined,
+        assignmentDate: undefined,
+        vehicleStatus: VehicleStatus.ACTIVE
+      } : v));
+    }
+
+    // Assign new
+    setInventory(prev => prev.map(i => i.id === selectedItem.id ? {
+      ...i,
       assignedTo: assignmentData.driverId,
       signature: assignmentData.signature,
       assignmentDate: new Date().toISOString(),
       vehicleStatus: VehicleStatus.ALLOCATED
-    } : it));
+    } : i));
 
     if (selectedItem.plate) {
-      setDrivers(drivers.map(d => d.id === assignmentData.driverId ? { ...d, plate: selectedItem.plate! } : d));
+      setDrivers(prev => prev.map(d => d.id === assignmentData.driverId ? { ...d, plate: selectedItem.plate || '' } : d));
     }
 
     setIsAssignModalOpen(false);
@@ -164,17 +169,25 @@ const VehiclesView: React.FC = () => {
   };
 
   const getStatusColor = (item: InventoryItem) => {
+    let isUrgent = false;
+    if (item.huExpiration) {
+        const expiryDate = parseISO(item.huExpiration);
+        const daysLeft = differenceInDays(expiryDate, new Date());
+        if (daysLeft <= 30) isUrgent = true;
+    }
+
+    if (isUrgent) return 'border-red-400 bg-red-50 ring-2 ring-red-200 ring-inset shadow-lg';
+
     switch (item.vehicleStatus) {
-      case VehicleStatus.ACTIVE:
-        return 'border-emerald-200 bg-emerald-50/20';
-      case VehicleStatus.ALLOCATED:
-        return 'border-amber-200 bg-amber-50/20';
-      case VehicleStatus.SERVICE:
-        return 'border-red-200 bg-red-50/20';
-      default:
-        return 'border-slate-200 bg-white';
+      case VehicleStatus.ACTIVE: return 'border-emerald-200 bg-emerald-50/20';
+      case VehicleStatus.ALLOCATED: return 'border-amber-200 bg-amber-50/20';
+      case VehicleStatus.SERVICE: return 'border-red-200 bg-red-50/20';
+      default: return 'border-slate-200 bg-white';
     }
   };
+
+  // Only show drivers who do not already have an assigned vehicle plate
+  const availableDrivers = drivers.filter(d => !d.plate);
 
   return (
     <div className="space-y-6 animate-in slide-in-from-right-4 duration-300 pb-10">
@@ -188,9 +201,12 @@ const VehiclesView: React.FC = () => {
         <input type="text" placeholder={t.search} className="w-full pl-9 pr-4 py-2 bg-slate-200/50 rounded-xl focus:outline-none text-sm font-medium" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 px-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 px-2 pb-20">
         {filteredVehicles.map(item => {
-          const isHUExpired = item.huExpiration && isPast(new Date(item.huExpiration));
+          const expiryDate = item.huExpiration ? parseISO(item.huExpiration) : null;
+          const daysLeft = expiryDate ? differenceInDays(expiryDate, new Date()) : null;
+          const isHUExpired = expiryDate && isPast(expiryDate);
+          const isHUNear = daysLeft !== null && daysLeft <= 30;
           const isInService = item.vehicleStatus === VehicleStatus.SERVICE;
           
           return (
@@ -201,14 +217,26 @@ const VehiclesView: React.FC = () => {
             >
               <div className="p-5 flex-1">
                 <div className="flex items-center justify-between mb-3">
-                  <div className={`p-2 rounded-xl ${isInService ? 'bg-red-100 text-red-600' : item.vehicleStatus === VehicleStatus.ALLOCATED ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
-                    <Truck size={18} />
+                  <div className={`p-2 rounded-xl ${isInService ? 'bg-red-100 text-red-600' : isHUNear ? 'bg-red-500 text-white' : item.vehicleStatus === VehicleStatus.ALLOCATED ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                    {isHUNear && !isInService ? <AlertTriangle size={18} /> : <Truck size={18} />}
                   </div>
                   <div className="flex flex-col items-end">
                     {item.huExpiration && (
-                      <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md flex items-center mb-1 ${isHUExpired ? 'bg-red-500 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                        <AlertCircle size={10} className="mr-1" /> HU: {format(new Date(item.huExpiration), 'MM/yyyy')}
-                      </span>
+                      <div className="flex flex-col items-end">
+                        <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md flex items-center mb-1 ${isHUExpired ? 'bg-red-600 text-white' : isHUNear ? 'bg-amber-500 text-white shadow-sm animate-pulse' : 'bg-slate-100 text-slate-500'}`}>
+                          <AlertCircle size={10} className="mr-1" /> HU: {format(expiryDate!, 'MM/yyyy')}
+                        </span>
+                        {isHUNear && !isHUExpired && (
+                           <p className="text-[8px] font-black text-red-600 uppercase tracking-tighter">
+                             {t.dueIn} {daysLeft} {t.days}
+                           </p>
+                        )}
+                        {isHUExpired && (
+                           <p className="text-[8px] font-black text-red-600 uppercase tracking-tighter animate-bounce">
+                             {t.huExpired}
+                           </p>
+                        )}
+                      </div>
                     )}
                     {isInService && (
                       <span className="text-[8px] font-black uppercase tracking-tighter bg-red-600 text-white px-1.5 py-0.5 rounded-full">
@@ -221,7 +249,7 @@ const VehiclesView: React.FC = () => {
                 <h3 className="text-lg font-bold text-slate-900 leading-tight">{item.name}</h3>
                 
                 <div className="mt-1">
-                  <p className={`text-xs font-mono font-black px-2 py-0.5 rounded-md inline-block ${isInService ? 'bg-red-100 text-red-700' : item.vehicleStatus === VehicleStatus.ALLOCATED ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                  <p className={`text-xs font-mono font-black px-2 py-0.5 rounded-md inline-block ${isInService ? 'bg-red-100 text-red-700' : isHUNear ? 'bg-red-100 text-red-800' : item.vehicleStatus === VehicleStatus.ALLOCATED ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
                     {item.plate}
                   </p>
                 </div>
@@ -233,21 +261,21 @@ const VehiclesView: React.FC = () => {
                     </div>
                     <div className="flex-1 overflow-hidden">
                       <p className="text-xs font-bold text-slate-900 truncate">{getDriverName(item.assignedTo)}</p>
-                      <p className="text-[10px] text-slate-400 font-medium">{item.assignmentDate ? format(new Date(item.assignmentDate), 'dd.MM.yyyy') : 'N/A'}</p>
+                      <p className="text-[10px] text-slate-400 font-medium">{item.assignmentDate ? format(parseISO(item.assignmentDate), 'dd.MM.yyyy') : 'N/A'}</p>
                     </div>
                   </div>
                 )}
               </div>
 
-              <div className="bg-slate-50/50 p-2 flex space-x-2 border-t border-slate-100">
+              <div className="bg-slate-50/50 p-2 flex space-x-2 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
                 {isInService ? (
-                  <button onClick={(e) => { e.stopPropagation(); handleStatusChange(item.id, VehicleStatus.ACTIVE); }} className="flex-1 flex items-center justify-center bg-emerald-600 text-white py-2.5 rounded-xl text-xs font-bold shadow-md">
+                  <button onClick={() => handleStatusChange(item.id, VehicleStatus.ACTIVE)} className="flex-1 flex items-center justify-center bg-emerald-600 text-white py-2.5 rounded-xl text-xs font-bold shadow-md">
                     <RefreshCw size={14} className="mr-2" /> {t.returnFromService}
                   </button>
                 ) : (
                   <>
                     {!item.assignedTo ? (
-                      <button onClick={(e) => { e.stopPropagation(); setSelectedItem(item); setIsAssignModalOpen(true); }} className="flex-1 flex items-center justify-center bg-[#007AFF] text-white py-2.5 rounded-xl text-xs font-bold shadow-md">
+                      <button onClick={() => { setSelectedItem(item); setIsAssignModalOpen(true); }} className="flex-1 flex items-center justify-center bg-[#007AFF] text-white py-2.5 rounded-xl text-xs font-bold shadow-md">
                         <User size={14} className="mr-2" /> {t.assign}
                       </button>
                     ) : (
@@ -257,13 +285,13 @@ const VehiclesView: React.FC = () => {
                     )}
                     <div className="relative">
                       <button 
-                        onClick={(e) => { e.stopPropagation(); setIsServiceMenuOpen(isServiceMenuOpen === item.id ? null : item.id); }} 
+                        onClick={() => setIsServiceMenuOpen(isServiceMenuOpen === item.id ? null : item.id)} 
                         className={`p-2.5 rounded-xl transition-colors ${isServiceMenuOpen === item.id ? 'bg-red-500 text-white' : 'bg-red-100 text-red-600'}`}
                       >
                         <Wrench size={16} />
                       </button>
                       {isServiceMenuOpen === item.id && (
-                        <div className="absolute bottom-full right-0 mb-2 w-48 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-[50] animate-in slide-in-from-bottom-2">
+                        <div className="absolute bottom-full right-0 mb-2 w-48 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-[50] animate-in slide-in-from-bottom-22">
                           <div className="p-2 space-y-1">
                             <button onClick={() => handleStatusChange(item.id, VehicleStatus.SERVICE, t.serviceDealer)} className="w-full text-left p-3 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-700 flex items-center">
                               <Wrench size={14} className="mr-2 text-slate-400" /> {t.serviceDealer}
@@ -292,7 +320,7 @@ const VehiclesView: React.FC = () => {
               <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6 shrink-0"></div>
               <div className="flex justify-between items-center mb-6 px-1">
                 <h2 className="text-xl font-black">{editingItemId ? t.save : t.save}</h2>
-                <button onClick={() => setIsAddItemModalOpen(false)} className="text-[#007AFF] font-bold">{t.cancel}</button>
+                <button onClick={() => setIsAddItemModalOpen(false)} className="text-red-500 font-bold">{t.cancel}</button>
               </div>
               
               <form onSubmit={handleSaveItem} className="space-y-6 overflow-y-auto pr-1">
@@ -311,7 +339,9 @@ const VehiclesView: React.FC = () => {
                   </div>
                   <input type="date" className="w-full p-4 bg-slate-100 rounded-xl outline-none font-bold text-sm" value={newItemData.huExpiration} onChange={e => setNewItemData({...newItemData, huExpiration: e.target.value})} />
                 </div>
-                <button type="submit" className="w-full bg-[#007AFF] text-white py-5 font-black rounded-2xl shadow-xl shadow-blue-500/20 active:scale-[0.97] transition-all">{t.save}</button>
+                <button type="submit" disabled={isSubmitting} className="w-full bg-[#007AFF] text-white py-5 font-black rounded-2xl shadow-xl active:scale-[0.97] transition-all">
+                  {isSubmitting ? '...' : t.save}
+                </button>
               </form>
            </div>
         </div>
@@ -329,7 +359,7 @@ const VehiclesView: React.FC = () => {
                 <label className="text-[10px] font-black uppercase text-slate-400 px-1">{t.selectDriver}</label>
                 <select required className="w-full p-4 bg-slate-100 rounded-xl outline-none font-bold text-sm appearance-none" value={assignmentData.driverId} onChange={e => setAssignmentData({...assignmentData, driverId: e.target.value})}>
                   <option value="">{t.selectDriver}</option>
-                  {drivers.map(d => <option key={d.id} value={d.id}>{d.firstName} {d.lastName}</option>)}
+                  {availableDrivers.map(d => <option key={d.id} value={d.id}>{d.firstName} {d.lastName}</option>)}
                 </select>
               </div>
 
@@ -337,9 +367,22 @@ const VehiclesView: React.FC = () => {
                 <label className="text-[10px] font-black uppercase text-slate-400 px-1">{t.signature}</label>
                 <SignaturePad onSave={(data) => setAssignmentData({...assignmentData, signature: data})} />
               </div>
-              <button type="submit" className="w-full bg-[#007AFF] text-white py-4 font-black rounded-2xl shadow-lg active:scale-95 transition-all">
-                {t.confirmAssignment}
-              </button>
+              <div className="flex space-x-3 pt-2">
+                <button 
+                  type="button" 
+                  onClick={() => setIsAssignModalOpen(false)}
+                  className="flex-1 bg-slate-100 text-red-500 py-4 font-bold rounded-2xl active:bg-slate-200 transition-colors"
+                >
+                  {t.cancel}
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={!assignmentData.driverId || !assignmentData.signature || isSubmitting} 
+                  className="flex-[2] bg-[#007AFF] text-white py-4 font-black rounded-2xl shadow-lg active:scale-95 transition-all disabled:opacity-50"
+                >
+                  {isSubmitting ? '...' : t.confirmAssignment}
+                </button>
+              </div>
             </form>
           </div>
         </div>

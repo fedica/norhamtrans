@@ -219,7 +219,7 @@ const InventoryView: React.FC = () => {
               <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6 shrink-0"></div>
               <div className="flex justify-between items-center mb-6 px-1">
                 <h2 className="text-xl font-black">{editingItemId ? t.save : t.save}</h2>
-                <button onClick={() => setIsAddItemModalOpen(false)} className="text-[#007AFF] font-bold">{t.cancel}</button>
+                <button onClick={() => setIsAddItemModalOpen(false)} className="text-red-500 font-bold">{t.cancel}</button>
               </div>
               
               <form onSubmit={handleSaveItem} className="space-y-6 overflow-y-auto pr-1">
@@ -285,9 +285,22 @@ const InventoryView: React.FC = () => {
                 <label className="text-[10px] font-black uppercase text-slate-400 px-1">{t.signature}</label>
                 <SignaturePad onSave={(data) => setAssignmentData({...assignmentData, signature: data})} />
               </div>
-              <button type="submit" className="w-full bg-[#007AFF] text-white py-4 font-black rounded-2xl shadow-lg active:scale-95 transition-all">
-                {t.confirmAssignment}
-              </button>
+              <div className="flex space-x-3 pt-2">
+                <button 
+                  type="button" 
+                  onClick={() => setIsAssignModalOpen(false)}
+                  className="flex-1 bg-slate-100 text-red-500 py-4 font-bold rounded-2xl active:bg-slate-200 transition-colors"
+                >
+                  {t.cancel}
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={!assignmentData.driverId || !assignmentData.signature} 
+                  className="flex-[2] bg-[#007AFF] text-white py-4 font-black rounded-2xl shadow-lg active:scale-95 transition-all disabled:opacity-50"
+                >
+                  {t.confirmAssignment}
+                </button>
+              </div>
             </form>
           </div>
         </div>

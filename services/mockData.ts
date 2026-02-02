@@ -1,9 +1,10 @@
 
-import { Driver, InventoryItem, InventoryType, Complaint, StopPlan } from '../types';
+import { Driver, InventoryItem, InventoryType, Complaint, StopPlan, DriverStatus } from '../types';
 
+// Fix: Added missing 'status' property to initial drivers to match the Driver interface
 export const initialDrivers: Driver[] = [
-  { id: '1', firstName: 'John', lastName: 'Doe', glsNumber: 'GLS-001', phone: '+49 123 456789', plate: 'B-XY-1234', isBeginner: false, createdAt: new Date().toISOString() },
-  { id: '2', firstName: 'Jane', lastName: 'Smith', glsNumber: 'GLS-002', phone: '+49 987 654321', plate: 'B-ZZ-5678', isBeginner: false, createdAt: new Date().toISOString() },
+  { id: '1', firstName: 'John', lastName: 'Doe', glsNumber: 'GLS-001', phone: '+49 123 456789', plate: 'B-XY-1234', isBeginner: false, status: DriverStatus.AVAILABLE, createdAt: new Date().toISOString() },
+  { id: '2', firstName: 'Jane', lastName: 'Smith', glsNumber: 'GLS-002', phone: '+49 987 654321', plate: 'B-ZZ-5678', isBeginner: false, status: DriverStatus.AVAILABLE, createdAt: new Date().toISOString() },
 ];
 
 export const initialInventory: InventoryItem[] = [

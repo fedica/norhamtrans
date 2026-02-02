@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Plus, Search, User, UserPlus, MapPin, Calendar as CalendarIcon, List, X, Edit2, Package, Hash, ChevronRight, CopyPlus, Star, Navigation } from 'lucide-react';
 import { format, eachDayOfInterval, isSameDay, addMonths, subMonths, addDays } from 'date-fns';
-import { Tour, TourStatus, InventoryType, TourType } from '../types';
+import { Tour, TourStatus, InventoryType, TourType, VehicleStatus } from '../types';
 import { useTranslation, useAppData } from '../App';
 
 const TourManager: React.FC = () => {
@@ -140,7 +140,10 @@ const TourManager: React.FC = () => {
   // Sort by Tour Number (Ascending)
   const sortedTours = filteredTours.sort((a, b) => a.tourNumber.localeCompare(b.tourNumber, undefined, { numeric: true, sensitivity: 'base' }));
 
-  const vehicles = inventory.filter(item => item.type === InventoryType.VEHICLE);
+  // Only show available vehicles, or the vehicle already assigned to the tour being edited
+  const availableVehicles = inventory.filter(item => 
+    item.type === InventoryType.VEHICLE && (item.vehicleStatus === VehicleStatus.ACTIVE || item.id === formData.vehicleId)
+  );
 
   const prevDayToursCount = tours.filter(t => t.date === format(addDays(selectedDate || new Date(), -1), 'yyyy-MM-dd')).length;
 
@@ -274,7 +277,7 @@ const TourManager: React.FC = () => {
               <span className="text-lg font-black text-blue-600">{prevDayToursCount}</span>
             </div>
             <div className="flex space-x-3">
-              <button onClick={() => setIsCopyModalOpen(false)} className="flex-1 py-4 font-bold text-slate-500 bg-slate-100 rounded-2xl active:bg-slate-200 transition-colors">{t.cancel}</button>
+              <button onClick={() => setIsCopyModalOpen(false)} className="flex-1 py-4 font-bold text-red-500 bg-slate-100 rounded-2xl active:bg-slate-200 transition-colors">{t.cancel}</button>
               <button 
                 onClick={handleCopyFromYesterday} 
                 disabled={prevDayToursCount === 0}
@@ -291,7 +294,7 @@ const TourManager: React.FC = () => {
         <div className="fixed inset-0 z-[110] bg-black/40 ios-blur flex items-end animate-in fade-in duration-200">
           <div className="bg-white w-full rounded-t-[30px] flex flex-col max-h-[92vh] animate-in slide-in-from-bottom-20 duration-300">
             <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto my-3"></div>
-            <div className="px-6 pb-4 border-b border-slate-100 flex items-center justify-between"><h2 className="text-xl font-black">{editingTour ? 'Tour bearbeiten' : 'Neue Tour planen'}</h2><button onClick={() => setIsModalOpen(false)} className="text-[#007AFF] font-bold">Abbrechen</button></div>
+            <div className="px-6 pb-4 border-b border-slate-100 flex items-center justify-between"><h2 className="text-xl font-black">{editingTour ? 'Tour bearbeiten' : 'Neue Tour planen'}</h2><button onClick={() => setIsModalOpen(false)} className="text-red-500 font-bold">{t.cancel}</button></div>
             <form onSubmit={handleSaveTour} className="p-6 space-y-6 overflow-y-auto">
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Eigenschaft</label>
@@ -307,7 +310,7 @@ const TourManager: React.FC = () => {
               </div>
               <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Hauptfahrer</label><select required className="w-full p-4 bg-slate-100 rounded-xl outline-none font-bold text-sm" value={formData.driverId} onChange={e => setFormData({...formData, driverId: e.target.value})}><option value="">Wählen...</option>{drivers.filter(d => !d.isBeginner).map(d => <option key={d.id} value={d.id}>{d.firstName} {d.lastName}</option>)}</select></div>
               <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Beifahrer (Optional)</label><select className="w-full p-4 bg-slate-100 rounded-xl outline-none font-bold text-sm" value={formData.beginnerDriverId} onChange={e => setFormData({...formData, beginnerDriverId: e.target.value})}><option value="">Keiner...</option>{drivers.filter(d => d.isBeginner).map(d => <option key={d.id} value={d.id}>{d.firstName} {d.lastName}</option>)}</select></div>
-              <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Fahrzeug</label><select required className="w-full p-4 bg-slate-100 rounded-xl outline-none font-bold text-sm" value={formData.vehicleId} onChange={e => setFormData({...formData, vehicleId: e.target.value})}><option value="">Wählen...</option>{vehicles.map(v => <option key={v.id} value={v.id}>{v.name} ({v.plate})</option>)}</select></div>
+              <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Fahrzeug</label><select required className="w-full p-4 bg-slate-100 rounded-xl outline-none font-bold text-sm" value={formData.vehicleId} onChange={e => setFormData({...formData, vehicleId: e.target.value})}><option value="">Wählen...</option>{availableVehicles.map(v => <option key={v.id} value={v.id}>{v.name} ({v.plate})</option>)}</select></div>
               <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Datum</label><input type="date" className="w-full p-4 bg-slate-100 rounded-xl outline-none font-bold text-sm" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} /></div>
               <button type="submit" className="w-full bg-[#007AFF] text-white font-black py-5 rounded-2xl shadow-xl active:scale-95 transition-transform">{editingTour ? 'Tour aktualisieren' : 'Tour planen'}</button>
             </form>

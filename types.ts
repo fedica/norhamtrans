@@ -11,6 +11,13 @@ export enum VehicleStatus {
   SERVICE = 'Service'
 }
 
+export enum DriverStatus {
+  AVAILABLE = 'Available',
+  FEHLT = 'Fehlt',
+  URLAUB = 'Urlaub',
+  SICK = 'Sick'
+}
+
 export enum TourStatus {
   PENDING = 'Pending',
   ACTIVE = 'Active',
@@ -31,7 +38,7 @@ export interface InventoryAssignment {
   date: string;
   signature: string;
   returnedAt?: string;
-  driverPlateAtTime?: string; // Static snapshot of the plate during assignment
+  driverPlateAtTime?: string; 
 }
 
 export interface Driver {
@@ -42,7 +49,12 @@ export interface Driver {
   phone: string;
   plate: string;
   isBeginner: boolean;
+  status: DriverStatus;
   createdAt: string;
+  vacationStart?: string;
+  vacationEnd?: string;
+  sickStart?: string;
+  sickEnd?: string;
 }
 
 export interface InventoryItem {

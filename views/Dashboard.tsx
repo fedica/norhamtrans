@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Users, 
@@ -12,10 +12,13 @@ import {
   ClipboardCheck,
   Wrench,
   Clock,
-  LayoutGrid
+  LayoutGrid,
+  AlertTriangle,
+  Bell
 } from 'lucide-react';
 import { useTranslation, useAppData, useAuth } from '../App';
-import { VehicleStatus } from '../types';
+import { VehicleStatus, InventoryType } from '../types';
+import { differenceInDays, isPast, parseISO } from 'date-fns';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -24,16 +27,29 @@ const Dashboard: React.FC = () => {
   const { user } = useAuth();
 
   // Practical metrics calculations
-  const todayStr = new Date().toISOString().split('T')[0];
-  const toursToday = tours.filter(t => t.date === todayStr).length;
-  const activeDrivers = drivers.length;
   const pendingComplaints = complaints.filter(c => !c.resolved).length;
   const vehiclesInService = inventory.filter(i => i.vehicleStatus === VehicleStatus.SERVICE).length;
+  const inventoryItemsCount = inventory.filter(i => i.type !== InventoryType.VEHICLE).length;
 
+  // Maintenance Notification Logic
+  const maintenanceAlerts = useMemo(() => {
+    return inventory
+      .filter(item => item.type === InventoryType.VEHICLE && item.huExpiration)
+      .map(v => {
+        const expiryDate = parseISO(v.huExpiration!);
+        const daysLeft = differenceInDays(expiryDate, new Date());
+        const expired = isPast(expiryDate);
+        return { ...v, daysLeft, expired };
+      })
+      .filter(v => v.expired || v.daysLeft <= 30)
+      .sort((a, b) => a.daysLeft - b.daysLeft);
+  }, [inventory]);
+
+  // Reordered Quick Stats per request: Lager, Abfahrt, Rekla, Service
   const quickStats = [
-    { label: 'Touren', value: toursToday, icon: MapIcon, color: 'text-blue-600', bg: 'bg-blue-50', path: '/tours' },
-    { label: 'Fahrer', value: activeDrivers, icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-50', path: '/drivers' },
-    { label: t.complaints, value: pendingComplaints, icon: AlertCircle, color: 'text-amber-600', bg: 'bg-amber-50', path: '/complaints' },
+    { label: t.other, value: inventoryItemsCount, icon: Package, color: 'text-emerald-600', bg: 'bg-emerald-50', path: '/inventory' },
+    { label: 'Abfahrt', value: 'Check', icon: ClipboardCheck, color: 'text-slate-900', bg: 'bg-slate-100', path: '/control' },
+    { label: 'Rekla', value: pendingComplaints, icon: AlertCircle, color: 'text-amber-600', bg: 'bg-amber-50', path: '/complaints' },
     { label: 'Service', value: vehiclesInService, icon: Wrench, color: 'text-red-600', bg: 'bg-red-50', path: '/vehicles' },
   ];
 
@@ -48,7 +64,7 @@ const Dashboard: React.FC = () => {
     },
     { 
       id: 'control', 
-      name: 'Abfahrtskontrolle', 
+      name: t.control, 
       desc: 'Sicherheitscheck', 
       icon: ClipboardCheck, 
       path: '/control', 
@@ -65,7 +81,7 @@ const Dashboard: React.FC = () => {
     { 
       id: 'inventory', 
       name: t.inventory, 
-      desc: 'Lager', 
+      desc: 'Bestand', 
       icon: Package, 
       path: '/inventory', 
       color: 'bg-emerald-500' 
@@ -74,15 +90,12 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-      {/* Welcome Header */}
+      {/* Welcome Header - Personalized and Lowercase welcome */}
       <div className="flex items-center justify-between px-1 pt-2">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-none">
-            Willkommen <span className="text-blue-600">{user?.name || 'Admin'}</span>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-none lowercase">
+            {t.welcome} <span className="text-blue-600">{user?.firstName || 'Admin'}</span>
           </h1>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
-            norhamtrans control center
-          </p>
         </div>
         <div className="bg-white p-2 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-2">
           <Clock size={14} className="text-blue-600" />
@@ -92,7 +105,7 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Highlights / Quick Metrics */}
+      {/* Quick Metrics (Lager, Abfahrt, Rekla, Service) - Prim Plan */}
       <div className="grid grid-cols-4 gap-2 px-1">
         {quickStats.map((stat, i) => (
           <button 
@@ -104,10 +117,56 @@ const Dashboard: React.FC = () => {
               <stat.icon size={16} strokeWidth={2.5} />
             </div>
             <p className="text-sm font-black text-slate-900 leading-none">{stat.value}</p>
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-tighter mt-1">{stat.label}</p>
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-tighter mt-1 truncate w-full">{stat.label}</p>
           </button>
         ))}
       </div>
+
+      {/* Maintenance Notification Area - Now below the four options */}
+      {maintenanceAlerts.length > 0 && (
+        <div className="px-1 space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-xs font-black text-red-500 uppercase tracking-widest flex items-center">
+              <Bell size={12} className="mr-1.5 animate-bounce" /> {t.maintenanceAlerts}
+            </h2>
+            <span className="bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">
+              {maintenanceAlerts.length}
+            </span>
+          </div>
+          <div className="space-y-2">
+            {maintenanceAlerts.slice(0, 2).map((alert) => (
+              <div 
+                key={alert.id} 
+                onClick={() => navigate('/vehicles')}
+                className={`p-4 rounded-2xl border flex items-center justify-between active:scale-[0.98] transition-all cursor-pointer shadow-sm ${alert.expired ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'}`}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className={`p-2 rounded-xl ${alert.expired ? 'bg-red-500 text-white' : 'bg-amber-500 text-white'}`}>
+                    <AlertTriangle size={18} />
+                  </div>
+                  <div>
+                    <p className={`text-xs font-black uppercase tracking-tight ${alert.expired ? 'text-red-700' : 'text-amber-700'}`}>
+                      {alert.expired ? t.huExpired : t.huSoon}
+                    </p>
+                    <p className="text-sm font-bold text-slate-900">Kennzeichen: {alert.plate}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className={`text-[10px] font-black uppercase tracking-tighter ${alert.expired ? 'text-red-600' : 'text-amber-600'}`}>
+                    {alert.expired ? t.expiredLabel : `${t.dueIn} ${alert.daysLeft} ${t.days}`}
+                  </p>
+                  <ChevronRight size={14} className="text-slate-300 ml-auto mt-1" />
+                </div>
+              </div>
+            ))}
+            {maintenanceAlerts.length > 2 && (
+              <button onClick={() => navigate('/vehicles')} className="w-full text-center py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-blue-500">
+                + {maintenanceAlerts.length - 2} weitere Warnungen anzeigen
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Main Focus / Quick Actions */}
       <div className="px-1">
@@ -136,7 +195,6 @@ const Dashboard: React.FC = () => {
       {/* Activity Feed / System Health */}
       <div className="px-1">
         <div className="bg-slate-900 rounded-[32px] p-6 shadow-2xl relative overflow-hidden">
-          {/* Animated Background Element */}
           <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/20 rounded-full -mr-16 -mt-16 blur-3xl animate-pulse"></div>
           
           <div className="relative z-10 flex items-center justify-between mb-6">

@@ -115,12 +115,13 @@ const ComplaintsView: React.FC = () => {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+        <div className="fixed inset-0 z-[110] bg-black/40 ios-blur flex items-end animate-in fade-in duration-200">
+          <div className="bg-white w-full rounded-t-[30px] flex flex-col max-h-[92vh] animate-in slide-in-from-bottom-20 duration-300">
+            <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto my-3"></div>
+            <div className="px-6 pb-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
               <h2 className="text-xl font-bold text-slate-900">{t.newComplaint}</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
-                <X size={24} />
+              <button onClick={() => setIsModalOpen(false)} className="text-red-500 font-bold">
+                {t.cancel}
               </button>
             </div>
             <form onSubmit={handleCreate} className="p-8 space-y-4">
@@ -149,7 +150,7 @@ const ComplaintsView: React.FC = () => {
                 <label className="text-xs font-bold text-slate-500 uppercase">Zip</label>
                 <input required className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/20" value={formData.postalCode} onChange={e => setFormData({...formData, postalCode: e.target.value})} />
               </div>
-              <button type="submit" className="w-full bg-slate-900 text-white font-bold py-3 rounded-xl mt-4">{t.save}</button>
+              <button type="submit" className="w-full bg-[#007AFF] text-white font-black py-4 rounded-xl mt-4 shadow-xl active:scale-95">{t.save}</button>
             </form>
           </div>
         </div>
@@ -171,8 +172,8 @@ const ComplaintsView: React.FC = () => {
               onChange={e => setResolvePkgInput(e.target.value)}
             />
             <div className="flex space-x-3">
-              <button onClick={() => setIsResolving(null)} className="flex-1 py-3 font-bold text-slate-500">{t.cancel}</button>
-              <button onClick={handleResolve} disabled={!resolvePkgInput} className="flex-1 py-3 font-bold text-white bg-emerald-600 rounded-xl shadow-lg shadow-emerald-600/20 disabled:opacity-50">Confirm</button>
+              <button onClick={() => setIsResolving(null)} className="flex-1 py-3 font-bold text-red-500">{t.cancel}</button>
+              <button onClick={handleResolve} disabled={!resolvePkgInput} className="flex-1 py-3 font-black text-white bg-emerald-600 rounded-xl shadow-lg shadow-emerald-600/20 disabled:opacity-50">Confirm</button>
             </div>
           </div>
         </div>
